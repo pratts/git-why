@@ -1,0 +1,7 @@
+Before writing this, looked up the portability lessons already captured as notes on 8af5907 (mapfile is bash 4+ only, macOS ships bash 3.2; BSD paste needs -s/-d separate and an explicit stdin dash) rather than re-deriving them by trial and error -- this script reuses the same while-read-loop-into-array pattern from git-why.sh and never touches paste, on purpose.
+
+The three possible outcomes (no notes anywhere in history, newest commit already noted, N commits since the last note) are reported as distinct messages rather than one generic format, because they call for different reactions: "no notes found" means the coverage check itself doesn't apply yet (nothing to compare against), "up to date" means nothing to do, and an actual gap needs the list. Collapsing them into one shape would make the zero-notes case look identical to a healthy repo that just hasn't reached its first note, which are very different situations.
+
+Output is capped at the 20 most recent gap commits with a "not shown" count appended, rather than printing the whole gap unbounded, because this is meant to be glanced at as a status check, not paged through -- an unbounded dump on a large repo defeats the purpose of a quick coverage read.
+
+The optional path argument scopes the git log walk with `-- path` the same way git-why.sh does, so `git-why-record.sh some/file` answers "is this file's own history behind on notes" using the same semantics the lookup script already established, rather than inventing a different scoping convention.
