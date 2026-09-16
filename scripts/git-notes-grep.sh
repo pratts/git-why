@@ -16,7 +16,7 @@ if [[ $# -eq 0 ]]; then
   exit 1
 fi
 
-pattern=$(printf '%s\n' "$@" | paste -sd'|')
+pattern=$(IFS='|'; echo "$*")
 
 found=0
 while read -r sha; do

@@ -24,7 +24,10 @@ if [[ -n "$line" ]]; then
   fi
   shas=("$sha")
 else
-  mapfile -t shas < <(git log --format='%H' -- "$file")
+  shas=()
+  while IFS= read -r sha_line; do
+    shas+=("$sha_line")
+  done < <(git log --format='%H' -- "$file")
   if [[ ${#shas[@]} -eq 0 ]]; then
     echo "no history found for $file -- check the path" >&2
     exit 1
