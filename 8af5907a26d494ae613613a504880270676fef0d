@@ -1,0 +1,7 @@
+Discovered by actually running both scripts (dogfooding the skill on this repo, not just reading the code) rather than trusting them on inspection.
+
+git-why.sh used mapfile (a bash 4+ builtin) to collect commit SHAs into an array. macOS ships bash 3.2 as /bin/bash by default (Apple stopped bundling newer bash for GPLv3 licensing reasons), and there's no Homebrew bash installed here either -- so #!/usr/bin/env bash resolves to 3.2 on a typical Mac and mapfile fails outright with 'command not found'. Replaced with a while-read loop, which is POSIX-compatible bash and has worked since bash 2.
+
+git-notes-grep.sh used paste -sd'|' to OR-join keywords into a grep pattern. BSD paste (the version macOS ships, not GNU coreutils paste) requires -s and -d as separate arguments and refuses to read stdin implicitly -- it needs an explicit - filename argument, and combined short flags aren't accepted the GNU way. Rather than special-case BSD vs GNU paste invocations, replaced the whole thing with a shell builtin: pattern= joins the positional args on | using only bash's own IFS word-splitting, no external command at all -- more portable and one line shorter.
+
+Both bugs were invisible from reading the code; they only surfaced when actually running the scripts on this machine. That's the case for verifying a skill's own tooling against its own repo before trusting it against someone else's.
