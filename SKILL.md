@@ -127,6 +127,19 @@ Prefer these over re-reading old chat transcripts — the notes are the
 purpose-built, structured source of truth for "why," and they stay accurate even
 after the chat that produced them is long gone.
 
+**Checking whether notes are falling behind — use `scripts/git-why-record.sh`:**
+
+```bash
+scripts/git-why-record.sh
+```
+
+Both scripts above answer "what's the reasoning for X" once a note exists.
+This one answers a different question — "are we behind on writing notes at
+all" — by reporting every commit newer than the most recent one that already
+has a note attached. It's a purely mechanical coverage check (no AI, no note
+generation, no side effects), useful for spot-checking that the habit is
+actually being kept up.
+
 ## Known limitation
 
 `git notes` live on a separate ref (`refs/notes/commits`) and are **not** included

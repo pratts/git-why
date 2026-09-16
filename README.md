@@ -40,6 +40,19 @@ multiple keywords are OR'd together).
 scripts/git-notes-grep.sh lock reboot
 ```
 
+### `scripts/git-why-record.sh [path]`
+
+Coverage check: report which recent commits don't have a reasoning note yet.
+Purely mechanical — no AI, no note generation, just a status report of "the
+gap" since notes were last kept up to date. Walks history from newest to
+oldest, finds the most recent commit that already has a note, and lists
+everything newer than that.
+
+```bash
+scripts/git-why-record.sh
+scripts/git-why-record.sh internal/process/lock.go
+```
+
 ## Caveat: notes don't travel with push/fetch/clone by default
 
 `git notes` live on a separate ref, `refs/notes/commits`, which is **not**
