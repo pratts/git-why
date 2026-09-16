@@ -68,12 +68,49 @@ Good note:
 Bad note (just restates the commit): "Added a lock file to prevent two processes
 from running at once."
 
+### Decisions spanning two files: definition vs. call site
+
+Some decisions involve both a primitive's definition (a lock, a helper function)
+and a specific call site that uses it in a particular way. Put the note on the
+commit that actually makes the decision — usually the integration/call-site
+commit, since the primitive itself is often decision-agnostic (it doesn't know
+how it'll be used, only the caller does).
+
+But the primitive's own file is often the first place someone looks when they ask
+"why does this exist" — they're staring at the lock, not the caller. If that's a
+likely lookup point, add a short pointer note there too:
+
+```bash
+git notes add -m "See commit <sha> for why this is used this way in <caller>." <primitive-sha>
+```
+
+That way a file-scoped lookup on the primitive doesn't silently come up empty — it
+at least points the reader to where the real reasoning lives, instead of relying
+on them to already know to check the caller's commit.
+
 ## How to look up existing reasoning
 
 Don't rely on memory or chat history to answer "why does this exist" — use the
 bundled scripts, which read directly from git.
 
-**You know the file (and maybe the line) — use `scripts/git-why.sh`:**
+**Not sure where the reasoning might be attached — start with `scripts/git-notes-grep.sh`:**
+
+```bash
+scripts/git-notes-grep.sh lock reboot
+```
+
+Searches the text of every note in the repo for the given keyword(s)
+(case-insensitive, OR'd together) and prints the matching commits and their
+notes — regardless of which file each commit touched. This matters because a note
+often lives on the commit that makes a decision, not on every file that decision
+affects: e.g. "why we call X this way" may be attached to the commit that adds the
+*call site* in Y, not to any commit that touched X's own file. A file-scoped
+lookup on X can come up empty even though a perfectly good answer exists
+elsewhere. When it's unclear whether the reasoning might live on a caller's commit
+rather than the definition's own file, try this first or alongside
+`git-why.sh` — not only as a fallback after `git-why.sh` comes up empty.
+
+**You already have a good guess which commit/file the reasoning lives on — use `scripts/git-why.sh`:**
 
 ```bash
 scripts/git-why.sh internal/process/lock.go
@@ -81,16 +118,10 @@ scripts/git-why.sh internal/process/lock.go 41
 ```
 
 Finds the commit(s) that touched that file (or that exact line, if given), and
-prints any reasoning note attached to them.
-
-**You remember a concept but not where it lives — use `scripts/git-notes-grep.sh`:**
-
-```bash
-scripts/git-notes-grep.sh lock reboot
-```
-
-Searches the text of every note in the repo for the given keyword(s)
-(case-insensitive, OR'd together) and prints the matching commits and their notes.
+prints any reasoning note attached to them. This is precise but strictly
+file-scoped — it will only ever surface notes on commits that touched the exact
+path you query — so treat it as the tool for once you know where to look, not as
+a general-purpose "why does this exist" search on its own.
 
 Prefer these over re-reading old chat transcripts — the notes are the
 purpose-built, structured source of truth for "why," and they stay accurate even
