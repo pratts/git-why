@@ -1,0 +1,9 @@
+SKILL.md's note-writing instruction only fires if the model remembers to apply it on its own -- this hook closes that gap by making the reminder deterministic, firing on every git commit rather than relying on recall.
+
+PostToolUse was chosen over PreToolUse specifically because the goal is a reminder after the fact, not a gate: PreToolUse can block or alter a tool call before it runs, which would let a hook interfere with the commit itself. PostToolUse fires only after the matched tool call already succeeded, so the hook is structurally incapable of blocking or modifying commits -- it can only add context Claude sees afterward.
+
+The `if: Bash(git commit *)` matcher, combined with PostToolUse's success-only firing (a failing Bash command -- e.g. a commit rejected by a pre-commit hook -- routes to PostToolUseFailure instead, which this hook isn't registered on) means the hook needs no manual exit-code or success check of its own: by construction, this script only ever runs after a commit has actually succeeded.
+
+additionalContext is phrased as a factual statement ("A git commit just succeeded... the skill's guidance is...") rather than an imperative command ("You must now write a note"), per the hooks docs' own warning that text framed as an out-of-band system instruction can trip Claude's prompt-injection defenses and get treated as suspicious rather than legitimate project context.
+
+The script itself makes no judgment call about whether a given commit is note-worthy -- it always emits the same reminder text regardless of what changed. That judgment is inherently semantic (only reading the diff can tell whether the change was mechanical or carried a real design decision), so it's left entirely to Claude, applying SKILL.md's existing skip criteria, rather than trying to approximate it with shell heuristics like commit message length or changed-file count.
