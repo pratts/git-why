@@ -43,6 +43,7 @@ while IFS= read -r -d "$RS" record; do
   rest="${record#*"$US"}"
   subject="${rest%%"$US"*}"
   note="${rest#*"$US"}"
+  note="${note%$'\n'}" # %N appends one trailing newline when a note exists
 
   any=1
   if [[ -n "$note" ]]; then
