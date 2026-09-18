@@ -132,6 +132,7 @@ after the chat that produced them is long gone.
 
 ```bash
 scripts/git-why-record.sh
+scripts/git-why-record.sh internal/process/lock.go
 ```
 
 Both scripts above answer "what's the reasoning for X" once a note exists.
@@ -139,7 +140,8 @@ This one answers a different question — "are we behind on writing notes at
 all" — by reporting every commit newer than the most recent one that already
 has a note attached. It's a purely mechanical coverage check (no AI, no note
 generation, no side effects), useful for spot-checking that the habit is
-actually being kept up.
+actually being kept up. Takes an optional path argument to scope the check
+to one file/directory's history instead of the whole branch.
 
 ## Known limitation
 
