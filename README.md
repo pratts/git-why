@@ -137,7 +137,8 @@ scripts/git-why.sh internal/process/lock.go 41
 ### `scripts/git-notes-grep.sh <keyword> [more keywords...]`
 
 Search the text of every note in the repo for a keyword (case-insensitive,
-multiple keywords are OR'd together).
+multiple keywords are OR'd together, matched literally — special characters
+in a keyword are treated as plain text, not regex).
 
 ```bash
 scripts/git-notes-grep.sh lock reboot

@@ -47,29 +47,37 @@ for kw in "$@"; do
 done
 
 # git notes list prints "<note-blob-sha> <commit-sha>" pairs, one per noted
-# commit, in an arbitrary (note-tree) order -- not commit date order. Stamp
-# each with its commit time and sort so results still come out newest first,
-# same as git-why.sh and git-why-record.sh.
-matches=""
+# commit. Note content is read here, once, and carried through in
+# match_note -- not re-fetched later just to print it.
+match_ts=()
+match_sha=()
+match_note=()
 while read -r note_blob commit_sha; do
   [[ -z "$commit_sha" ]] && continue
   note=$(git show "$note_blob" 2>/dev/null || true)
   if [[ -n "$note" ]] && grep -qiE "$pattern" <<<"$note"; then
-    ts=$(git log -1 --format=%ct "$commit_sha")
-    matches+="${ts} ${commit_sha}"$'\n'
+    match_ts+=("$(git log -1 --format=%ct "$commit_sha")")
+    match_sha+=("$commit_sha")
+    match_note+=("$note")
   fi
 done < <(git notes list)
 
+# git notes list order is the note tree's order, not commit date order.
+# Sort match indices by timestamp so results still come out newest first,
+# same as git-why.sh and git-why-record.sh.
 found=0
-if [[ -n "$matches" ]]; then
-  while read -r _ts commit_sha; do
-    [[ -z "$commit_sha" ]] && continue
+if [[ ${#match_sha[@]} -gt 0 ]]; then
+  order=""
+  for (( i = 0; i < ${#match_sha[@]}; i++ )); do
+    order+="${match_ts[i]} ${i}"$'\n'
+  done
+  while read -r _ts idx; do
+    [[ -z "$idx" ]] && continue
     found=1
-    note=$(git notes show "$commit_sha" 2>/dev/null || true)
-    echo "commit ${commit_sha:0:9} -- $(git log -1 --format=%s "$commit_sha")"
-    echo "$note" | sed 's/^/  /'
+    echo "commit ${match_sha[idx]:0:9} -- $(git log -1 --format=%s "${match_sha[idx]}")"
+    echo "${match_note[idx]}" | sed 's/^/  /'
     echo
-  done < <(printf '%s' "$matches" | sort -rn)
+  done < <(printf '%s' "$order" | sort -rn)
 fi
 
 if [[ "$found" -eq 0 ]]; then

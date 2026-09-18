@@ -100,8 +100,9 @@ scripts/git-notes-grep.sh lock reboot
 ```
 
 Searches the text of every note in the repo for the given keyword(s)
-(case-insensitive, OR'd together) and prints the matching commits and their
-notes — regardless of which file each commit touched. This matters because a note
+(case-insensitive, OR'd together, matched literally — special characters in a
+keyword are treated as plain text, not regex) and prints the matching commits
+and their notes — regardless of which file each commit touched. This matters because a note
 often lives on the commit that makes a decision, not on every file that decision
 affects: e.g. "why we call X this way" may be attached to the commit that adds the
 *call site* in Y, not to any commit that touched X's own file. A file-scoped
