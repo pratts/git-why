@@ -19,115 +19,33 @@ way this silently fails to load is an extra level of nesting, e.g.
 `.claude/skills/git-why/git-why/SKILL.md` — double check the clone didn't
 create a nested directory.
 
-## When Claude uses this
+## How it works
 
-Claude applies this skill proactively in two situations:
+Claude applies this skill proactively: right after a commit that involved
+real design reasoning, and whenever you ask "why does this exist" about
+existing code. This only happens when Claude is present in the session —
+there's no hook or background automation by default, and no retroactive
+notes for commits made outside Claude. The full criteria for what warrants a
+note, how to write one, and where to put it when a decision spans two files
+lives in [SKILL.md](SKILL.md) — that's the canonical source Claude actually
+follows; this file just covers install and the lookup tools.
 
-- Right after making a git commit that involved real design reasoning — a
-  rejected alternative, a constraint that ruled out a simpler approach, a
-  subtle bug fix, a deliberate tradeoff.
-- Whenever you ask "why does this exist," "why was this done this way," or
-  "what was the reasoning behind X" about existing code — Claude looks up the
-  answer with the bundled scripts before falling back to searching old chat
-  history.
-
-This only happens when Claude is actively present in a session. There's no
-hook, no background automation, and no retroactive note-writing for commits
-made outside Claude (by you directly, by CI, by another tool) — if Claude
-wasn't there when the commit happened, no note gets written for it
-automatically.
-
-This repo itself is an exception it opts into for its own dogfooding: it
-ships an optional `PostToolUse` hook (`.claude/settings.json` +
-`.claude/hooks/git-commit-reminder.sh`) that fires the reminder above
-deterministically after every `git commit`, rather than relying on Claude to
-remember. It only takes effect when this repo is the open project — it does
-**not** travel with the skill when installed into `.claude/skills/git-why/`
-elsewhere.
-
-**Known limitation:** the hook matches on `if: "Bash(git commit *)"`, which
-requires the literal words `git` and `commit` to be adjacent in the command.
-A commit invoked with a git-level flag in between —
-`git -c user.name=x commit -m ...`, `git -C some/other/repo commit -m ...`,
-`git --no-pager commit -m ...` — won't match, so the hook silently doesn't
-fire for it. Tracked in
+This repo also ships an optional `PostToolUse` hook
+(`.claude/settings.json`) for its own dogfooding, which fires that reminder
+deterministically after every `git commit` instead of relying on Claude to
+remember. It only takes effect when this repo itself is the open project —
+it does **not** travel with the skill when installed elsewhere. Known gap:
+a commit with a git-level flag before the subcommand (`git -c ...`,
+`git -C ...`) won't trigger it — tracked in
 [#2](https://github.com/pratts/git-why/issues/2).
-
-### When a note gets written (and when it doesn't)
-
-After making a commit, Claude writes a note if — and only if — the change
-involved non-obvious reasoning. Good candidates:
-
-- An approach was chosen specifically because a simpler one didn't work (a
-  library limitation, a race condition, a platform constraint).
-- An alternative was seriously considered and rejected — worth recording
-  *why* it was rejected, not just that it was.
-- A subtle bug fix where the root cause isn't obvious from the diff alone.
-- A tradeoff was made deliberately (e.g. simplicity over performance, or
-  vice versa).
-
-It's skipped for mechanical changes: dependency bumps, formatting,
-straightforward additions with no real decision behind them, typo fixes. Not
-every commit needs a note — a note on every commit is noise, and noise gets
-ignored.
-
-A good note does NOT restate the commit message or summarize the diff — that
-information is already in `git log`. It answers the question someone will
-ask while staring at this code later: **"why is it built this way, and not
-some other way?"**
-
-Commit message: `Add per-torrent advisory lock to prevent spawn race`
-
-Good note:
-> Needed to prevent two processes racing to download into the same directory if the
-> parent dies between spawning the child and recording its PID. Considered checking
-> PID + boot_id alone, but that only detects the race after it's already happened.
-> flock is auto-released on any process death (including SIGKILL), so it closes the
-> race window itself rather than just detecting it afterward.
-
-Bad note (just restates the commit): "Added a lock file to prevent two
-processes from running at once."
-
-Notes are written with:
-
-```bash
-git notes add -m "<reasoning text>" <commit-sha>
-```
-
-or, to add to a note that already exists on that commit rather than replace
-it:
-
-```bash
-git notes append -m "<additional reasoning>" <commit-sha>
-```
-
-### Decisions spanning two files
-
-Some decisions involve both a primitive's definition (a lock, a helper
-function) and a specific call site that uses it in a particular way. The
-note goes on the commit that actually makes the decision — usually the
-integration/call-site commit, since the primitive itself is often
-decision-agnostic (it doesn't know how it'll be used, only the caller does).
-
-But the primitive's own file is often the first place someone looks when
-they ask "why does this exist" — they're staring at the lock, not the
-caller. When that's a likely lookup point, Claude also adds a short pointer
-note there:
-
-```bash
-git notes add -m "See commit <sha> for why this is used this way in <caller>." <primitive-sha>
-```
-
-That way a file-scoped lookup on the primitive doesn't silently come up
-empty — it at least points to where the real reasoning lives, instead of
-relying on the reader to already know to check the caller's commit.
 
 ## Usage
 
 ### `scripts/git-why.sh <file> [line]`
 
 Find the commit(s) that touched a file (or one line), and print any
-reasoning note attached to them.
+reasoning note attached to them. Navigation-first: use it when you already
+know the file.
 
 ```bash
 scripts/git-why.sh internal/process/lock.go
@@ -136,26 +54,19 @@ scripts/git-why.sh internal/process/lock.go 41
 
 ### `scripts/git-notes-grep.sh <keyword> [more keywords...]`
 
-Search the text of every note in the repo for a keyword (case-insensitive,
-multiple keywords are OR'd together, matched literally — special characters
-in a keyword are treated as plain text, not regex).
+Search every note's text for a keyword (case-insensitive, OR'd together,
+matched literally). Recall-first: use it when you remember a concept but not
+which file it lives in.
 
 ```bash
 scripts/git-notes-grep.sh lock reboot
 ```
 
-This is the recall-first lookup: use it when you remember a concept but not
-which file or commit it lives in. It complements `git-why.sh`, which is
-navigation-first — you already know the file/line and want the reasoning
-attached to it.
-
 ### `scripts/git-why-record.sh [path]`
 
 Coverage check: report which recent commits don't have a reasoning note yet.
-Purely mechanical — no AI, no note generation, just a status report of "the
-gap" since notes were last kept up to date. Walks history from newest to
-oldest, finds the most recent commit that already has a note, and lists
-everything newer than that.
+Purely mechanical, no AI — just how many commits have piled up since the
+last note.
 
 ```bash
 scripts/git-why-record.sh
