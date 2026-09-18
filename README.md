@@ -37,6 +37,22 @@ made outside Claude (by you directly, by CI, by another tool) — if Claude
 wasn't there when the commit happened, no note gets written for it
 automatically.
 
+This repo itself is an exception it opts into for its own dogfooding: it
+ships an optional `PostToolUse` hook (`.claude/settings.json` +
+`.claude/hooks/git-commit-reminder.sh`) that fires the reminder above
+deterministically after every `git commit`, rather than relying on Claude to
+remember. It only takes effect when this repo is the open project — it does
+**not** travel with the skill when installed into `.claude/skills/git-why/`
+elsewhere.
+
+**Known limitation:** the hook matches on `if: "Bash(git commit *)"`, which
+requires the literal words `git` and `commit` to be adjacent in the command.
+A commit invoked with a git-level flag in between —
+`git -c user.name=x commit -m ...`, `git -C some/other/repo commit -m ...`,
+`git --no-pager commit -m ...` — won't match, so the hook silently doesn't
+fire for it. Tracked in
+[#2](https://github.com/pratts/git-why/issues/2).
+
 ### When a note gets written (and when it doesn't)
 
 After making a commit, Claude writes a note if — and only if — the change
