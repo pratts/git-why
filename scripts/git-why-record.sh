@@ -12,6 +12,9 @@
 #
 # With no argument, walks the whole current branch. Pass a path to scope the
 # walk to commits touching that file/directory instead.
+#
+# Membership against the noted-commit set (built from a single `git notes
+# list` call) is a pure bash string test, not a subprocess per commit.
 
 set -euo pipefail
 
@@ -34,10 +37,21 @@ if [[ ${#shas[@]} -eq 0 ]]; then
   exit 0
 fi
 
+# Build the noted-commit set once via `git notes list` -- a single git call
+# -- instead of forking `git notes show` per commit while walking history
+# below. Without this, a repo with zero notes fetched (see the README's
+# push/fetch caveat) would fork git once for every commit in the whole
+# history before concluding there's nothing to find.
+noted=$'\n'
+while read -r _note_blob note_sha; do
+  [[ -z "$note_sha" ]] && continue
+  noted+="${note_sha}"$'\n'
+done < <(git notes list)
+
 gap=()
 last_noted=""
 for sha in "${shas[@]}"; do
-  if git notes show "$sha" >/dev/null 2>&1; then
+  if [[ "$noted" == *$'\n'"${sha}"$'\n'* ]]; then
     last_noted="$sha"
     break
   fi
