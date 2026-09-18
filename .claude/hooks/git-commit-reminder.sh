@@ -18,7 +18,7 @@ cat <<'JSON'
 {
   "hookSpecificOutput": {
     "hookEventName": "PostToolUse",
-    "additionalContext": "A git commit just succeeded. Per this repo's SKILL.md (installed elsewhere as .claude/skills/git-why/SKILL.md): if the commit involved non-obvious design reasoning -- a rejected alternative, a constraint that ruled out a simpler approach, a subtle bug fix, a deliberate tradeoff -- it should get a git notes entry, following the skill's note-writing guidance. Mechanical commits (formatting, a dependency bump, a typo fix) do not need one."
+    "additionalContext": "A git commit just succeeded. Check it against SKILL.md's git-why note criteria; skip if mechanical."
   }
 }
 JSON
