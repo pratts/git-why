@@ -6,8 +6,11 @@
 #
 # git log/blame answer "what changed and when" -- this answers "why".
 #
-# Looks up notes via a single `git notes list` call plus in-memory matching,
-# not a `git notes show` fork per commit touching the file.
+# Notes are read via `git log`'s own %N format placeholder, which joins each
+# commit with its note (empty if none) in the same process that walks
+# history -- no separate `git notes list`/`git notes show` call, no bash-side
+# matching. %N follows core.notesRef the same way `git notes show` does, so
+# behavior doesn't diverge for a repo using a non-default notes ref.
 
 set -euo pipefail
 
@@ -19,57 +22,58 @@ fi
 file="$1"
 line="${2:-}"
 
+US=$'\x1f' # field separator between sha / subject / note
+RS=$'\x1e' # record separator between commits
+
 if [[ -n "$line" ]]; then
   sha=$(git blame -L "${line},${line}" --porcelain -- "$file" 2>/dev/null | head -1 | cut -d' ' -f1)
   if [[ -z "$sha" ]]; then
     echo "could not blame ${file}:${line} -- check the file and line number" >&2
     exit 1
   fi
-  shas=("$sha")
-else
-  shas=()
-  while IFS= read -r sha_line; do
-    shas+=("$sha_line")
-  done < <(git log --format='%H' -- "$file")
-  if [[ ${#shas[@]} -eq 0 ]]; then
-    echo "no history found for $file -- check the path" >&2
-    exit 1
-  fi
-fi
 
-# Build the noted-commit -> note-blob map once via `git notes list`, instead
-# of forking `git notes show` per commit touching this file. Most commits
-# touching a file don't have a note, so this turns up to N forks into a
-# handful (one `git show` per actual match, zero for the rest).
-notes_commit_arr=()
-notes_blob_arr=()
-while read -r blob commit_sha; do
-  [[ -z "$commit_sha" ]] && continue
-  notes_commit_arr+=("$commit_sha")
-  notes_blob_arr+=("$blob")
-done < <(git notes list)
+  info=$(git log -1 --format="%s${US}%N" "$sha")
+  subject="${info%%"$US"*}"
+  note="${info#*"$US"}"
+  note="${note%$'\n'}" # %N appends one trailing newline when a note exists
 
-found=0
-for sha in "${shas[@]}"; do
-  blob=""
-  for (( j = 0; j < ${#notes_commit_arr[@]}; j++ )); do
-    if [[ "${notes_commit_arr[j]}" == "$sha" ]]; then
-      blob="${notes_blob_arr[j]}"
-      break
-    fi
-  done
-  [[ -z "$blob" ]] && continue
-  note=$(git show "$blob" 2>/dev/null || true)
+  found=0
   if [[ -n "$note" ]]; then
     found=1
-    echo "commit ${sha:0:9} -- $(git log -1 --format=%s "$sha")"
+    echo "commit ${sha:0:9} -- $subject"
     echo "$note" | sed 's/^/  /'
     echo
   fi
-done
 
-if [[ "$found" -eq 0 ]]; then
-  target="$file"
-  [[ -n "$line" ]] && target="${file}:${line}"
-  echo "no reasoning note found for $target"
+  if [[ "$found" -eq 0 ]]; then
+    echo "no reasoning note found for ${file}:${line}"
+  fi
+else
+  any=0
+  found=0
+  while IFS= read -r -d "$RS" record; do
+    record="${record#$'\n'}" # strip the newline git appends after each record
+    sha="${record%%"$US"*}"
+    rest="${record#*"$US"}"
+    subject="${rest%%"$US"*}"
+    note="${rest#*"$US"}"
+    note="${note%$'\n'}"
+
+    any=1
+    if [[ -n "$note" ]]; then
+      found=1
+      echo "commit ${sha:0:9} -- $subject"
+      echo "$note" | sed 's/^/  /'
+      echo
+    fi
+  done < <(git log --format="%H${US}%s${US}%N${RS}" -- "$file")
+
+  if [[ "$any" -eq 0 ]]; then
+    echo "no history found for $file -- check the path" >&2
+    exit 1
+  fi
+
+  if [[ "$found" -eq 0 ]]; then
+    echo "no reasoning note found for $file"
+  fi
 fi

@@ -13,50 +13,50 @@
 # With no argument, walks the whole current branch. Pass a path to scope the
 # walk to commits touching that file/directory instead.
 #
-# Membership against the noted-commit set (built from a single `git notes
-# list` call) is a pure bash string test, not a subprocess per commit.
+# Notes are read via `git log`'s own %N format placeholder, joined with each
+# commit in the same walk -- no separate `git notes list` call, no bash-side
+# set-building. The walk stops at the first noted commit it finds, so on a
+# repo with no notes fetched at all, this still reads the full history (there
+# is nothing to stop early on), but does it in one `git log` process rather
+# than forking git once per commit.
 
 set -euo pipefail
 
 path="${1:-}"
 max_print=20
 
-shas=()
+US=$'\x1f' # field separator between sha / subject / note
+RS=$'\x1e' # record separator between commits
+
+log_args=(--format="%H${US}%s${US}%N${RS}")
 if [[ -n "$path" ]]; then
-  while IFS= read -r sha_line; do
-    shas+=("$sha_line")
-  done < <(git log --format='%H' -- "$path")
-else
-  while IFS= read -r sha_line; do
-    shas+=("$sha_line")
-  done < <(git log --format='%H')
+  log_args+=(-- "$path")
 fi
 
-if [[ ${#shas[@]} -eq 0 ]]; then
+any=0
+gap=()
+last_noted=""
+last_noted_line=""
+while IFS= read -r -d "$RS" record; do
+  record="${record#$'\n'}" # strip the newline git appends after each record
+  sha="${record%%"$US"*}"
+  rest="${record#*"$US"}"
+  subject="${rest%%"$US"*}"
+  note="${rest#*"$US"}"
+
+  any=1
+  if [[ -n "$note" ]]; then
+    last_noted="$sha"
+    last_noted_line="${sha:0:9} -- ${subject}"
+    break
+  fi
+  gap+=("${sha:0:9}  ${subject}")
+done < <(git log "${log_args[@]}")
+
+if [[ "$any" -eq 0 ]]; then
   echo "no commit history found${path:+ for $path}"
   exit 0
 fi
-
-# Build the noted-commit set once via `git notes list` -- a single git call
-# -- instead of forking `git notes show` per commit while walking history
-# below. Without this, a repo with zero notes fetched (see the README's
-# push/fetch caveat) would fork git once for every commit in the whole
-# history before concluding there's nothing to find.
-noted=$'\n'
-while read -r _note_blob note_sha; do
-  [[ -z "$note_sha" ]] && continue
-  noted+="${note_sha}"$'\n'
-done < <(git notes list)
-
-gap=()
-last_noted=""
-for sha in "${shas[@]}"; do
-  if [[ "$noted" == *$'\n'"${sha}"$'\n'* ]]; then
-    last_noted="$sha"
-    break
-  fi
-  gap+=("$sha")
-done
 
 if [[ -z "$last_noted" ]]; then
   echo "no notes found in this repo's history -- nothing to compare against"
@@ -70,11 +70,11 @@ if [[ ${#gap[@]} -eq 0 ]]; then
 fi
 
 printed=0
-for sha in "${gap[@]}"; do
+for entry in "${gap[@]}"; do
   if [[ "$printed" -ge "$max_print" ]]; then
     break
   fi
-  echo "${sha:0:9}  $(git log -1 --format=%s "$sha")"
+  echo "$entry"
   printed=$((printed + 1))
 done
 
@@ -84,4 +84,4 @@ if [[ "$total" -gt "$max_print" ]]; then
 fi
 
 echo
-echo "$total commits since the last note (last noted: ${last_noted:0:9} -- $(git log -1 --format=%s "$last_noted"))"
+echo "$total commits since the last note (last noted: $last_noted_line)"

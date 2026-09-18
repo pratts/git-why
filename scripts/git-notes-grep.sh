@@ -11,10 +11,9 @@
 # Complements git-why.sh, which is navigation-first (you already know the
 # file/line and want the reasoning attached to it).
 #
-# Built on `git notes list`, which enumerates only the commits that actually
-# have a note attached. Cost scales with how many notes exist, not with how
-# many commits the repo has -- it does not walk the full commit history and
-# fork `git notes show` once per commit.
+# Notes are read via `git log`'s own %N format placeholder, joined with each
+# commit in the same walk, already in newest-first order -- no separate
+# `git notes list` call, no accumulating/sorting match arrays.
 
 set -euo pipefail
 
@@ -46,39 +45,26 @@ for kw in "$@"; do
   pattern="${pattern:+${pattern}|}${escaped}"
 done
 
-# git notes list prints "<note-blob-sha> <commit-sha>" pairs, one per noted
-# commit. Note content is read here, once, and carried through in
-# match_note -- not re-fetched later just to print it.
-match_ts=()
-match_sha=()
-match_note=()
-while read -r note_blob commit_sha; do
-  [[ -z "$commit_sha" ]] && continue
-  note=$(git show "$note_blob" 2>/dev/null || true)
-  if [[ -n "$note" ]] && grep -qiE "$pattern" <<<"$note"; then
-    match_ts+=("$(git log -1 --format=%ct "$commit_sha")")
-    match_sha+=("$commit_sha")
-    match_note+=("$note")
-  fi
-done < <(git notes list)
+US=$'\x1f' # field separator between sha / subject / note
+RS=$'\x1e' # record separator between commits
 
-# git notes list order is the note tree's order, not commit date order.
-# Sort match indices by timestamp so results still come out newest first,
-# same as git-why.sh and git-why-record.sh.
 found=0
-if [[ ${#match_sha[@]} -gt 0 ]]; then
-  order=""
-  for (( i = 0; i < ${#match_sha[@]}; i++ )); do
-    order+="${match_ts[i]} ${i}"$'\n'
-  done
-  while read -r _ts idx; do
-    [[ -z "$idx" ]] && continue
+while IFS= read -r -d "$RS" record; do
+  record="${record#$'\n'}" # strip the newline git appends after each record
+  sha="${record%%"$US"*}"
+  rest="${record#*"$US"}"
+  subject="${rest%%"$US"*}"
+  note="${rest#*"$US"}"
+  note="${note%$'\n'}" # %N appends one trailing newline when a note exists
+
+  [[ -z "$note" ]] && continue
+  if grep -qiE "$pattern" <<<"$note"; then
     found=1
-    echo "commit ${match_sha[idx]:0:9} -- $(git log -1 --format=%s "${match_sha[idx]}")"
-    echo "${match_note[idx]}" | sed 's/^/  /'
+    echo "commit ${sha:0:9} -- $subject"
+    echo "$note" | sed 's/^/  /'
     echo
-  done < <(printf '%s' "$order" | sort -rn)
-fi
+  fi
+done < <(git log --format="%H${US}%s${US}%N${RS}")
 
 if [[ "$found" -eq 0 ]]; then
   echo "no notes matched: $*"
