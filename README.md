@@ -8,11 +8,21 @@ it.
 
 ## Install
 
-Clone this repo into `.claude/skills/git-why/` inside the target project:
+Clone this repo into `.claude/skills/git-why/` inside the target project,
+then remove the nested `.git`:
 
 ```bash
 git clone <this-repo-url> .claude/skills/git-why
+rm -rf .claude/skills/git-why/.git
 ```
+
+The `rm -rf` step matters if the target project is itself a git repo (the
+usual case): without it, `git add` there treats `.claude/skills/git-why` as
+an embedded repository and stages a bare gitlink instead of the actual
+files — SKILL.md and the scripts silently don't get committed, and the next
+person to clone the target project gets an empty directory where the skill
+should be, with no error at any point. Deleting `.git` first makes it plain
+vendored files that commit normally.
 
 The resulting path **must** be `.claude/skills/git-why/SKILL.md`. A common
 way this silently fails to load is an extra level of nesting, e.g.
