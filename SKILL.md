@@ -93,6 +93,12 @@ on them to already know to check the caller's commit.
 Don't rely on memory or chat history to answer "why does this exist" — use the
 bundled scripts, which read directly from git.
 
+The scripts live in this skill's own directory, which is usually not the repo
+you're working in (e.g. `~/.claude/skills/git-why/` when installed per user).
+Run them by that path — `<skill dir>/scripts/git-why.sh …` — from inside the
+repo you're asking about; the `scripts/…` paths below are relative to the
+skill directory, not the current repo.
+
 **Not sure where the reasoning might be attached — start with `scripts/git-notes-grep.sh`:**
 
 ```bash

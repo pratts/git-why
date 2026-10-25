@@ -8,97 +8,66 @@ it.
 
 ## Install
 
-Clone this repo into `.claude/skills/git-why/` inside the target project,
-then remove the nested `.git`:
+Clone this repo once, anywhere outside your projects, then run its installer
+in one of two modes:
 
 ```bash
-git clone <this-repo-url> .claude/skills/git-why && rm -rf .claude/skills/git-why/.git
+git clone git@github.com:pratts/git-why.git ~/work/github/git-why
+
+# Per user: every repo you open in Claude Code
+~/work/github/git-why/scripts/install-skill.sh
+
+# Per repo: one repo only (run inside it, or pass its path)
+~/work/github/git-why/scripts/install-skill.sh --project [repo-dir]
 ```
 
-Keep the two commands joined with `&&`. If the clone fails (no network, or
-`.claude/skills/git-why` already exists), `rm -rf` must not run: on an
-existing clone it would delete that clone's history, including any
-unpushed work in it.
+| | Skill | Commit-reminder hook |
+| --- | --- | --- |
+| Per user | `~/.claude/skills/git-why` → this clone | `~/.claude/settings.json` |
+| Per repo | `<repo>/.claude/skills/git-why` → this clone | `<repo>/.claude/settings.local.json` |
 
-The `rm -rf` step matters if the target project is itself a git repo (the
-usual case): without it, `git add` there treats `.claude/skills/git-why` as
-an embedded repository and stages a bare gitlink instead of the actual
-files — SKILL.md and the scripts silently don't get committed, and the next
-person to clone the target project gets an empty directory where the skill
-should be, with no error at any point. Deleting `.git` first makes it plain
-vendored files that commit normally.
+Either way, git-why's files are never tracked by another repository:
 
-The resulting path **must** be `.claude/skills/git-why/SKILL.md`. A common
-way this silently fails to load is an extra level of nesting, e.g.
-`.claude/skills/git-why/git-why/SKILL.md` — double check the clone didn't
-create a nested directory.
+- The skill is a **symlink** back to this clone, not a copy, so there's no
+  nested `.git` inside your project and nothing to vendor.
+- Per repo, the hook goes in `settings.local.json` (Claude Code's
+  uncommitted local settings), not the shared `settings.json`, and both
+  paths are added to the repo's `.git/info/exclude`, git's local-only
+  ignore list. No tracked file in the repo changes, not even `.gitignore`,
+  and `git add .` skips them.
+- Existing settings files are merged with `jq`, never overwritten.
 
-### Updating
+Pick one mode per machine-and-repo: installed both ways, Claude sees the
+skill twice and the reminder fires twice (the installer warns about this).
 
-With `.git` removed there's nothing to `git pull`. To update, delete the
-folder and install again:
+**Update:** `git pull` in the clone. Every install links to it, so there's
+nothing to re-run.
 
-```bash
-rm -rf .claude/skills/git-why && git clone <this-repo-url> .claude/skills/git-why && rm -rf .claude/skills/git-why/.git
-```
+**Uninstall:** run the same command with `--uninstall` added, e.g.
+`install-skill.sh --project --uninstall`. It removes the link, the hook
+entry and the exclude lines it added, and leaves your other settings alone.
 
-This replaces the folder wholesale, so any local edits to the skill are
-lost. Review `git diff .claude/skills/git-why` in the target project before
-committing the update.
-
-### Optional: the commit-reminder hook
-
-The skill's own `.claude/settings.json` is **not** read when it's installed
-under `.claude/skills/` — Claude Code only loads a project's top-level
-`.claude/settings.json`. To get the reminder after every commit in the
-target project, add this to that file (merging into any existing `hooks`):
-
-```json
-{
-  "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "${CLAUDE_PROJECT_DIR}/.claude/skills/git-why/.claude/hooks/git-commit-reminder.sh"
-          }
-        ]
-      }
-    ]
-  }
-}
-```
-
-Pointing at the vendored script, rather than copying it, means updating the
-skill also updates the hook. Leave out an `if` condition: the script decides
-for itself whether the command was a commit (see below), and
-`"if": "Bash(git commit *)"` would hide commits like `git -C dir commit`
-from it. The script needs `jq` to read the command; without it, it reminds
-after every Bash call rather than never.
+Requires `jq` (the installer and the hook both use it) and git.
 
 ## How it works
 
 Claude applies this skill proactively: right after a commit that involved
 real design reasoning, and whenever you ask "why does this exist" about
 existing code. This only happens when Claude is present in the session —
-there's no hook or background automation by default, and no retroactive
+there's no background automation beyond the reminder hook, and no retroactive
 notes for commits made outside Claude. The full criteria for what warrants a
 note, how to write one, and where to put it when a decision spans two files
 lives in [SKILL.md](SKILL.md) — that's the canonical source Claude actually
 follows; this file just covers install and the lookup tools.
 
-This repo also ships an optional `PostToolUse` hook
-(`.claude/settings.json` and `.claude/hooks/git-commit-reminder.sh`), which
-fires that reminder deterministically after every `git commit` instead of
-relying on Claude to remember. It's active when this repo is the open
-project; other projects opt in as described under
-[Install](#optional-the-commit-reminder-hook). The script itself checks
-whether a Bash command ran `git commit`, including forms like
-`git -C dir commit`, `git -c key=value commit` and `git --no-pager commit`,
-while ignoring look-alikes such as `git log --grep=commit` or
-`git commit-tree`.
+The installer also registers a `PostToolUse` hook
+(`hooks/git-commit-reminder.sh`), which fires that reminder
+deterministically after every `git commit` instead of relying on Claude to
+remember. The script itself checks whether a Bash command ran `git commit`,
+including forms like `git -C dir commit`, `git -c key=value commit` and
+`git --no-pager commit`, while ignoring look-alikes such as
+`git log --grep=commit` or `git commit-tree`. Without `jq` it can't read the
+command, so it reminds after every Bash call rather than never.
 
 ## Usage
 
