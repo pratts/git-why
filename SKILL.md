@@ -141,7 +141,10 @@ all" — by reporting every commit newer than the most recent one that already
 has a note attached. It's a purely mechanical coverage check (no AI, no note
 generation, no side effects), useful for spot-checking that the habit is
 actually being kept up. Takes an optional path argument to scope the check
-to one file/directory's history instead of the whole branch.
+to one file/directory's history instead of the whole branch. The count is
+the tail gap since the newest note, not total coverage — un-noted commits
+older than that note aren't counted, so a mid-history backfill can make the
+number drop sharply without anything older being fixed.
 
 ## Known limitation
 
