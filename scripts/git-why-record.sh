@@ -5,6 +5,11 @@
 # and reports every commit newer than the most recent one that already has a
 # reasoning note attached -- "the gap" since notes were last kept up to date.
 #
+# That count is the tail gap only, not total coverage: un-noted commits older
+# than the most recent note (e.g. gaps left behind a mid-history backfill)
+# aren't counted, and the output says so, so the number isn't misread as
+# "total commits without notes" (#1).
+#
 # Purely mechanical: no AI, no note generation, no side effects. Answers "are
 # we behind on notes?" -- distinct from git-why.sh ("what's the reasoning for
 # this file/line?") and git-notes-grep.sh ("which commit has a note about
@@ -86,3 +91,4 @@ fi
 
 echo
 echo "$total commits since the last note (last noted: $last_noted_line)"
+echo "tail only -- un-noted commits older than that note aren't counted"

@@ -127,7 +127,8 @@ scripts/git-notes-grep.sh lock reboot
 
 Coverage check: report which recent commits don't have a reasoning note yet.
 Purely mechanical, no AI — just how many commits have piled up since the
-last note.
+last note. It counts the tail only: un-noted commits older than the most
+recent note aren't included, so it isn't a total-coverage number.
 
 ```bash
 scripts/git-why-record.sh
