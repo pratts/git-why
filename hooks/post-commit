@@ -1,0 +1,31 @@
+#!/bin/sh
+# git-why post-commit hook. Runs after every commit, whoever made it.
+# If the new commit has no note, ask for one line (human at a terminal) or
+# print a reminder (agent / no terminal). Standalone: needs only git.
+#
+# Install per repo:  ln -s /path/to/git-why/hooks/post-commit .git/hooks/post-commit
+# Silence once:      GIT_WHY=0 git commit ...    Never prompt: GIT_WHY_PROMPT=0
+
+[ "${GIT_WHY:-1}" = 0 ] && exit 0
+
+# Rebase / cherry-pick replay old commits; don't ask once per commit.
+gd=$(git rev-parse --git-dir)
+for m in rebase-merge rebase-apply CHERRY_PICK_HEAD; do
+	[ -e "$gd/$m" ] && exit 0
+done
+
+# Already has a note: nothing to do.
+git notes show HEAD >/dev/null 2>&1 && exit 0
+
+# A human has a terminal; agents usually don't. (: </dev/tty) tests that it
+# can be opened. read -t 30 so an unattended pty can't hang forever.
+if [ "${GIT_WHY_PROMPT:-1}" != 0 ] && (: </dev/tty) 2>/dev/null; then
+	printf 'git-why: why this change? (enter to skip) ' >/dev/tty
+	read -r -t 30 why </dev/tty
+	[ -n "$why" ] && git notes append -m "$why" HEAD
+	exit 0
+fi
+
+echo "git-why: this commit has no note. If it involved a real decision, record why:" >&2
+echo "  git notes append -m \"<constraint, what was chosen, what was rejected>\" HEAD" >&2
+exit 0
