@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 # git-why post-commit hook. Runs after every commit, whoever made it.
 # If the new commit has no note, ask for one line (human at a terminal) or
 # print a reminder (agent / no terminal). Standalone: needs only git.
