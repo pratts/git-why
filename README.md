@@ -30,15 +30,18 @@ reminder but never prompts. It is skipped during rebase and cherry-pick. If
 a line in it instead of the symlink.
 
 For a non-Claude agent, paste or reference [INSTRUCTIONS.md](INSTRUCTIONS.md)
-from its rules file. Notes aren't pushed by default; see "Known limitation"
-there.
+from its rules file. Notes aren't pushed by default; see
+[the caveat below](#caveat-notes-dont-travel-with-pushfetchclone-by-default).
 
 ## Claude Code extras (optional)
 
-Everything below is the Claude Code skill + `PostToolUse` hook. It is no longer
-required: the git hook above covers Claude too.
+Everything in this section is the Claude Code skill + `PostToolUse` hook. It is
+optional: the git hook above already covers Claude. The skill adds Claude
+applying the criteria on its own and answering "why does this exist" questions
+from notes. If you install the Claude hook too, Claude gets the reminder twice
+(once from each hook), so you may want to skip its hook.
 
-## Install
+### Install
 
 Clone this repo once, anywhere outside your projects, then run its installer
 in one of two modes:
@@ -81,7 +84,7 @@ entry and the exclude lines it added, and leaves your other settings alone.
 
 Requires `jq` (the installer and the hook both use it) and git.
 
-## How it works
+### How it works
 
 Claude applies this skill proactively: right after a commit that involved
 real design reasoning, and whenever you ask "why does this exist" about
@@ -89,10 +92,10 @@ existing code. This only happens when Claude is present in the session —
 there's no background automation beyond the reminder hook, and no retroactive
 notes for commits made outside Claude. The full criteria for what warrants a
 note, how to write one, and where to put it when a decision spans two files
-lives in [SKILL.md](SKILL.md) — that's the canonical source Claude actually
-follows; this file just covers install and the lookup tools.
+lives in [INSTRUCTIONS.md](INSTRUCTIONS.md), the canonical source. `SKILL.md`
+is only the Claude Code trigger that points to it.
 
-The installer also registers a `PostToolUse` hook
+The Claude installer also registers a `PostToolUse` hook
 (`hooks/git-commit-reminder.sh`), which fires that reminder
 deterministically after every `git commit` instead of relying on Claude to
 remember. The script itself checks whether a Bash command ran `git commit`,
@@ -101,7 +104,11 @@ including forms like `git -C dir commit`, `git -c key=value commit` and
 `git log --grep=commit` or `git commit-tree`. Without `jq` it can't read the
 command, so it reminds after every Bash call rather than never.
 
-## Usage
+## Lookup scripts
+
+Run these from inside the repo you're asking about, using the path to your
+clone (e.g. `~/git-why/scripts/git-why.sh`). The examples below use the short
+`scripts/...` form.
 
 ### `scripts/git-why.sh <file> [line]`
 
