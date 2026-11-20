@@ -29,80 +29,35 @@ reminder but never prompts. It is skipped during rebase and cherry-pick. If
 `.git/hooks/post-commit` already exists, add `"~/git-why/hooks/post-commit"` as
 a line in it instead of the symlink.
 
+Things to know:
+
+- **Moving or deleting the clone** breaks the symlink, and the hook then stops
+  running silently. Re-run the `ln -s` after moving it.
+- **Commits from a GUI or IDE button** have no terminal, so there's no prompt;
+  only the reminder goes to stderr, which you usually won't see. Use the
+  terminal (or `git notes append`) for those.
+- **One setup for every repo (optional):**
+  `git config --global core.hooksPath ~/git-why/hooks`. Tradeoff: git then
+  ignores each repo's own `.git/hooks`, which breaks tools like husky or
+  pre-commit. The per-repo symlink doesn't have that problem.
+- Needs only `git` and `bash` (3.2+ is fine, so macOS works).
+
 For a non-Claude agent, paste or reference [INSTRUCTIONS.md](INSTRUCTIONS.md)
 from its rules file. Notes aren't pushed by default; see
 [the caveat below](#caveat-notes-dont-travel-with-pushfetchclone-by-default).
 
-## Claude Code extras (optional)
+## Claude Code (optional)
 
-Everything in this section is the Claude Code skill + `PostToolUse` hook. It is
-optional: the git hook above already covers Claude. The skill adds Claude
-applying the criteria on its own and answering "why does this exist" questions
-from notes. If you install the Claude hook too, Claude gets the reminder twice
-(once from each hook), so you may want to skip its hook.
-
-### Install
-
-Clone this repo once, anywhere outside your projects, then run its installer
-in one of two modes:
+The hook above already works with Claude Code. To also let Claude apply the
+note criteria on its own and answer "why does this exist" from notes, link the
+skill once:
 
 ```bash
-git clone git@github.com:pratts/git-why.git ~/work/github/git-why
-
-# Per user: every repo you open in Claude Code
-~/work/github/git-why/scripts/install-skill.sh
-
-# Per repo: one repo only (run inside it, or pass its path)
-~/work/github/git-why/scripts/install-skill.sh --project [repo-dir]
+ln -s ~/git-why ~/.claude/skills/git-why
 ```
 
-| | Skill | Commit-reminder hook |
-| --- | --- | --- |
-| Per user | `~/.claude/skills/git-why` → this clone | `~/.claude/settings.json` |
-| Per repo | `<repo>/.claude/skills/git-why` → this clone | `<repo>/.claude/settings.local.json` |
-
-Either way, git-why's files are never tracked by another repository:
-
-- The skill is a **symlink** back to this clone, not a copy, so there's no
-  nested `.git` inside your project and nothing to vendor.
-- Per repo, the hook goes in `settings.local.json` (Claude Code's
-  uncommitted local settings), not the shared `settings.json`, and both
-  paths are added to the repo's `.git/info/exclude`, git's local-only
-  ignore list. No tracked file in the repo changes, not even `.gitignore`,
-  and `git add .` skips them.
-- Existing settings files are merged with `jq`, never overwritten.
-
-Pick one mode per machine-and-repo: installed both ways, Claude sees the
-skill twice and the reminder fires twice (the installer warns about this).
-
-**Update:** `git pull` in the clone. Every install links to it, so there's
-nothing to re-run.
-
-**Uninstall:** run the same command with `--uninstall` added, e.g.
-`install-skill.sh --project --uninstall`. It removes the link, the hook
-entry and the exclude lines it added, and leaves your other settings alone.
-
-Requires `jq` (the installer and the hook both use it) and git.
-
-### How it works
-
-Claude applies this skill proactively: right after a commit that involved
-real design reasoning, and whenever you ask "why does this exist" about
-existing code. This only happens when Claude is present in the session —
-there's no background automation beyond the reminder hook, and no retroactive
-notes for commits made outside Claude. The full criteria for what warrants a
-note, how to write one, and where to put it when a decision spans two files
-lives in [INSTRUCTIONS.md](INSTRUCTIONS.md), the canonical source. `SKILL.md`
-is only the Claude Code trigger that points to it.
-
-The Claude installer also registers a `PostToolUse` hook
-(`hooks/git-commit-reminder.sh`), which fires that reminder
-deterministically after every `git commit` instead of relying on Claude to
-remember. The script itself checks whether a Bash command ran `git commit`,
-including forms like `git -C dir commit`, `git -c key=value commit` and
-`git --no-pager commit`, while ignoring look-alikes such as
-`git log --grep=commit` or `git commit-tree`. Without `jq` it can't read the
-command, so it reminds after every Bash call rather than never.
+[INSTRUCTIONS.md](INSTRUCTIONS.md) is the canonical instructions; `SKILL.md` is
+only the Claude trigger that points to it. Nothing else to configure.
 
 ## Lookup scripts
 
