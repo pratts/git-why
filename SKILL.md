@@ -6,3 +6,6 @@ description: Capture the design reasoning behind non-trivial commits as git note
 Follow [INSTRUCTIONS.md](INSTRUCTIONS.md) in this directory. It is the single,
 tool-neutral source; this file only adds the Claude Code trigger above.
 Lookup scripts are in `scripts/` (see INSTRUCTIONS.md).
+
+This skill works on its own: the git hook is optional, so check for a note
+yourself after every commit you make instead of waiting for a reminder.

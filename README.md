@@ -6,28 +6,49 @@ whether an AI agent or you made the commit.
 
 ## Quick start
 
+Two ways to use it. Either one works alone; use both if you like.
+
+| | Works for | Needs |
+| --- | --- | --- |
+| **A. Git hook** | any tool, and you at a terminal | symlink into a repo's `.git/hooks` |
+| **B. Claude skill** | Claude Code, in any repo, no hook | one symlink, once per machine |
+
 ```bash
 git clone git@github.com:pratts/git-why.git ~/git-why
+```
+
+### A. Git hook (any tool, any editor)
+
+```bash
 cd your-repo
 ln -s ~/git-why/hooks/post-commit .git/hooks/post-commit
 ```
 
-That's the whole install. After any commit with no note:
+After any commit with no note:
 
-- **You, at a terminal:** the hook asks `why this change? (enter to skip)`. Type
-  one line, or press Enter. It gives up after 30s.
-- **An AI agent (no terminal):** the hook prints a one-line reminder with the
-  exact `git notes append -m "..."` command. The agent decides whether the
-  change deserves a note ([INSTRUCTIONS.md](INSTRUCTIONS.md) has the criteria).
+- **You, at a terminal:** it asks `why this change? (enter to skip)`. Type one
+  line, or press Enter. It gives up after 30s.
+- **An AI agent (no terminal):** it prints a one-line reminder with the exact
+  `git notes append -m "..."` command. The agent decides whether the change
+  deserves a note ([INSTRUCTIONS.md](INSTRUCTIONS.md) has the criteria).
 
-Add a note any time: `git notes append -m "why" [sha]`. Read them with
-`git log --show-notes` or the lookup scripts in `scripts/` (see
-INSTRUCTIONS.md). Remove the hook by deleting `.git/hooks/post-commit`.
+For a non-Claude agent, paste or reference [INSTRUCTIONS.md](INSTRUCTIONS.md)
+from its rules file.
 
 `GIT_WHY=0 git commit ...` silences it once; `GIT_WHY_PROMPT=0` keeps the
-reminder but never prompts. It is skipped during rebase and cherry-pick. If
-`.git/hooks/post-commit` already exists, add `"~/git-why/hooks/post-commit"` as
-a line in it instead of the symlink.
+reminder but never prompts. It is skipped during rebase and cherry-pick.
+
+**If the repo already has a post-commit hook**, the symlink would clash, so add
+one line to the end of the existing hook instead (before any `exit`/`exec`):
+
+```bash
+"$HOME/git-why/hooks/post-commit"
+```
+
+**If the repo uses husky, pre-commit or anything that sets `core.hooksPath`**,
+git ignores `.git/hooks`. Add that same line to the tool's own `post-commit`
+file (e.g. `.husky/post-commit`). If you can't or don't want to touch the hooks,
+use option B instead; the hook is optional.
 
 Things to know:
 
@@ -42,22 +63,26 @@ Things to know:
   pre-commit. The per-repo symlink doesn't have that problem.
 - Needs only `git` and `bash` (3.2+ is fine, so macOS works).
 
-For a non-Claude agent, paste or reference [INSTRUCTIONS.md](INSTRUCTIONS.md)
-from its rules file. Notes aren't pushed by default; see
-[the caveat below](#caveat-notes-dont-travel-with-pushfetchclone-by-default).
-
-## Claude Code (optional)
-
-The hook above already works with Claude Code. To also let Claude apply the
-note criteria on its own and answer "why does this exist" from notes, link the
-skill once:
+### B. Claude skill (no hook needed)
 
 ```bash
 ln -s ~/git-why ~/.claude/skills/git-why
 ```
 
+Start a new Claude Code session. Claude then checks, after every commit it
+makes, whether the change deserves a note, and answers "why does this exist"
+from existing notes. It doesn't wait for a hook, so this works in repos that
+already have their own post-commit hooks. The hook (A) just adds a reminder as
+a backup, and a prompt for your own commits.
 [INSTRUCTIONS.md](INSTRUCTIONS.md) is the canonical instructions; `SKILL.md` is
-only the Claude trigger that points to it. Nothing else to configure.
+only the Claude trigger that points to it.
+
+### Reading and adding notes
+
+Add a note any time: `git notes append -m "why" [sha]`. Read them with
+`git log --show-notes` or the lookup scripts in `scripts/` (see below).
+Notes aren't pushed by default; see
+[the caveat below](#caveat-notes-dont-travel-with-pushfetchclone-by-default).
 
 ## Lookup scripts
 
