@@ -5,10 +5,11 @@ git-why installed. Claude Code reads them through `SKILL.md`; for other tools
 paste or reference this file in their rules file (`AGENTS.md`, `GEMINI.md`,
 `CONVENTIONS.md`, `.cursor/rules`, ...).
 
-**After every `git commit` you make:** if the change involved a real decision,
-run `git notes append -m "<why>" HEAD`. If it was mechanical, do nothing. The
-repo's post-commit hook (`hooks/post-commit`) also reminds you when a commit
-has no note.
+**After every `git commit` you make, decide yourself** whether it needs a note:
+if the change involved a real decision, run `git notes append -m "<why>" HEAD`;
+if it was mechanical, do nothing. Don't wait for a reminder: the repo may have
+no git-why hook (many repos already have their own post-commit hook). If the
+hook is installed and prints a reminder after a commit, treat it the same way.
 
 # Commit Reasoning Notes
 
