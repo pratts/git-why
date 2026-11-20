@@ -1,10 +1,42 @@
 # git-why
 
-A Claude Code skill that captures the design reasoning behind non-trivial
-commits as git notes attached to the commit itself. The "why" — rejected
-alternatives, constraints that forced an approach, tradeoffs — becomes
-retrievable from the terminal forever, independent of the chat that produced
-it.
+Record *why* a commit was made, as a git note on the commit itself, so the
+reasoning outlives the chat or the memory that produced it. Works the same
+whether an AI agent or you made the commit.
+
+## Quick start
+
+```bash
+git clone git@github.com:pratts/git-why.git ~/git-why
+cd your-repo
+ln -s ~/git-why/hooks/post-commit .git/hooks/post-commit
+```
+
+That's the whole install. After any commit with no note:
+
+- **You, at a terminal:** the hook asks `why this change? (enter to skip)`. Type
+  one line, or press Enter. It gives up after 30s.
+- **An AI agent (no terminal):** the hook prints a one-line reminder with the
+  exact `git notes append -m "..."` command. The agent decides whether the
+  change deserves a note ([INSTRUCTIONS.md](INSTRUCTIONS.md) has the criteria).
+
+Add a note any time: `git notes append -m "why" [sha]`. Read them with
+`git log --show-notes` or the lookup scripts in `scripts/` (see
+INSTRUCTIONS.md). Remove the hook by deleting `.git/hooks/post-commit`.
+
+`GIT_WHY=0 git commit ...` silences it once; `GIT_WHY_PROMPT=0` keeps the
+reminder but never prompts. It is skipped during rebase and cherry-pick. If
+`.git/hooks/post-commit` already exists, add `"~/git-why/hooks/post-commit"` as
+a line in it instead of the symlink.
+
+For a non-Claude agent, paste or reference [INSTRUCTIONS.md](INSTRUCTIONS.md)
+from its rules file. Notes aren't pushed by default; see "Known limitation"
+there.
+
+## Claude Code extras (optional)
+
+Everything below is the Claude Code skill + `PostToolUse` hook. It is no longer
+required: the git hook above covers Claude too.
 
 ## Install
 
