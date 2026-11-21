@@ -77,6 +77,18 @@ a backup, and a prompt for your own commits.
 [INSTRUCTIONS.md](INSTRUCTIONS.md) is the canonical instructions; `SKILL.md` is
 only the Claude trigger that points to it.
 
+### Using it with AI agents
+
+- **Commit with `GIT_WHY_PROMPT=0`.** Some agents run commands in a terminal, so
+  the hook's question would wait on input nobody answers. `INSTRUCTIONS.md` tells
+  agents to do this; the reminder still prints.
+- **Sandboxes can block commits and notes.** Codex's default `workspace-write`
+  sandbox and `agy`'s sandbox make `.git` read-only, so `git commit` and
+  `git notes append` fail with `index.lock: Operation not permitted`. Approve
+  the command when asked, or allow writes to `.git` (for Codex,
+  `--sandbox danger-full-access` for a trusted repo). In non-interactive runs
+  such as `codex exec`, nothing can be approved, so the commit fails.
+
 ### Reading and adding notes
 
 Add a note any time: `git notes append -m "why" [sha]`. Read them with
