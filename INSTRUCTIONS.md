@@ -11,6 +11,14 @@ if it was mechanical, do nothing. Don't wait for a reminder: the repo may have
 no git-why hook (many repos already have their own post-commit hook). If the
 hook is installed and prints a reminder after a commit, treat it the same way.
 
+**Commit with `GIT_WHY_PROMPT=0 git commit ...`.** The hook may ask a question
+on a terminal, and some agents run commands in one, so the prompt would wait on
+input nobody answers. With `GIT_WHY_PROMPT=0` it only prints the reminder.
+
+If a commit or `git notes` command fails with `index.lock: Operation not
+permitted`, the tool's sandbox has made `.git` read-only. Ask the user to
+approve the command or allow writes to `.git`; don't skip the note.
+
 # Commit Reasoning Notes
 
 Git commit messages capture *what* changed. They rarely capture *why* — and when an
