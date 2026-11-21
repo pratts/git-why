@@ -2,7 +2,8 @@
 
 Record *why* a commit was made, as a git note on the commit itself, so the
 reasoning outlives the chat or the memory that produced it. Works the same
-whether an AI agent or you made the commit.
+whether an AI agent or you made the commit, with Claude Code, Codex, Antigravity,
+Cursor or no AI tool at all.
 
 ## Quick start
 
@@ -11,7 +12,7 @@ Two ways to use it. Either one works alone; use both if you like.
 | | Works for | Needs |
 | --- | --- | --- |
 | **A. Git hook** | any tool, and you at a terminal | symlink into a repo's `.git/hooks` |
-| **B. Claude skill** | Claude Code, in any repo, no hook | one symlink, once per machine |
+| **B. Skill** | Claude Code, Codex, Antigravity, Cursor, in any repo, no hook | one symlink per tool, once per machine |
 
 ```bash
 git clone git@github.com:pratts/git-why.git ~/git-why
@@ -63,19 +64,41 @@ Things to know:
   pre-commit. The per-repo symlink doesn't have that problem.
 - Needs only `git` and `bash` (3.2+ is fine, so macOS works).
 
-### B. Claude skill (no hook needed)
+### B. Skill (no hook needed)
+
+Claude Code, Codex CLI, Antigravity and Cursor all load skills from a folder
+containing `SKILL.md`, which is what this repo already is. Link it once into
+each tool you use:
+
+| Tool | Command |
+| --- | --- |
+| Claude Code | `ln -s ~/git-why ~/.claude/skills/git-why` |
+| Codex CLI | `mkdir -p ~/.codex/skills && ln -s ~/git-why ~/.codex/skills/git-why` |
+| Antigravity (app and `agy`) | `mkdir -p ~/.gemini/config/skills && ln -s ~/git-why ~/.gemini/config/skills/git-why` |
+| Cursor | `mkdir -p ~/.cursor/skills && ln -s ~/git-why ~/.cursor/skills/git-why` |
+
+Start a new session in the tool, then check it sees the skill by asking
+"do you have a skill named git-why?". Headless checks:
 
 ```bash
-ln -s ~/git-why ~/.claude/skills/git-why
+codex exec "Do you have a skill named git-why?"
+agy --settings '{"permissions":{"allow":["read_file(*)"]}}' -p='Do you have a skill named git-why?'
 ```
 
-Start a new Claude Code session. Claude then checks, after every commit it
-makes, whether the change deserves a note, and answers "why does this exist"
-from existing notes. It doesn't wait for a hook, so this works in repos that
-already have their own post-commit hooks. The hook (A) just adds a reminder as
-a backup, and a prompt for your own commits.
-[INSTRUCTIONS.md](INSTRUCTIONS.md) is the canonical instructions; `SKILL.md` is
-only the Claude trigger that points to it.
+The agent then checks, after every commit it makes, whether the change
+deserves a note, and answers "why does this exist" from existing notes. It
+doesn't wait for a hook, so this works in repos that already have their own
+post-commit hooks. The hook (A) just adds a reminder as a backup, and a prompt
+for your own commits. [INSTRUCTIONS.md](INSTRUCTIONS.md) is the canonical
+instructions; `SKILL.md` is only the trigger that points to it.
+
+Skill folder locations are from each tool's docs and were checked in Codex CLI,
+`agy` and the Cursor app; they can change between versions.
+
+**A tool with no skills support** (Aider, Windsurf, Copilot, Gemini CLI, ...):
+use the hook (A), and paste or reference [INSTRUCTIONS.md](INSTRUCTIONS.md) from
+the tool's rules file (`AGENTS.md`, `GEMINI.md`, `CONVENTIONS.md`,
+`.windsurf/rules`, `.github/copilot-instructions.md`). Not tested.
 
 ### Using it with AI agents
 
